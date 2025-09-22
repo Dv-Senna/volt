@@ -1,0 +1,3 @@
+[submodule "vendors/cpp-unicodelib"]
+	path = vendors/cpp-unicodelib
+	url = git@github.com:yhirose/cpp-unicodelib.git

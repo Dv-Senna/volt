@@ -8,9 +8,10 @@
 
 
 namespace volt::lx {
-	VOLT_LX_EXPORT auto spaceCharacters() noexcept -> std::u32string_view;
-	VOLT_LX_EXPORT auto lineBreakCharacters() noexcept -> std::u32string_view;
-	VOLT_LX_EXPORT auto identifierCharacters() noexcept -> std::u32string_view;
-	VOLT_LX_EXPORT auto identifierStartCharacters() noexcept -> std::u32string_view;
+	VOLT_LX_EXPORT auto isIgnoredCharacters(char32_t character) noexcept -> bool;
+	VOLT_LX_EXPORT auto isSpaceCharacters(char32_t character) noexcept -> bool;
+	VOLT_LX_EXPORT auto isLineBreakCharacters(char32_t character) noexcept -> bool;
+	VOLT_LX_EXPORT auto isIdentifierCharacters(char32_t character) noexcept -> bool;
+	VOLT_LX_EXPORT auto isIdentifierStartCharacters(char32_t character) noexcept -> bool;
 	VOLT_LX_EXPORT auto lex(std::u8string_view rawData) noexcept -> std::generator<lx::Token>;
 }

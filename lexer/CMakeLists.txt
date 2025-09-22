@@ -15,7 +15,7 @@ target_include_directories(lexer
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated/include>
 )
-target_link_libraries(lexer PUBLIC volt::core)
+target_link_libraries(lexer PUBLIC cpp-unicodelib::cpp-unicodelib volt::core)
 generate_export_header(lexer
 	PREFIX VOLT_LX
 	HEADER_PATH ${CMAKE_CURRENT_BINARY_DIR}/generated/include/volt/lx/export.hpp

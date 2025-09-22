@@ -16,10 +16,14 @@ namespace volt::core {
 	VOLT_CORE_EXPORT auto isSameCodePoint(std::u8string_view lhs, std::u8string_view rhs) noexcept -> bool;
 
 	struct Utf32ConverterView : std::ranges::range_adaptor_closure<Utf32ConverterView> {
+		VOLT_CORE_EXPORT auto operator()(std::u8string_view string) const noexcept -> std::generator<char32_t>;
+	};
+	constexpr core::Utf32ConverterView utf32_converter_view {};
+	struct EnumerateUtf32ConverterView : std::ranges::range_adaptor_closure<EnumerateUtf32ConverterView> {
 		VOLT_CORE_EXPORT auto operator()(std::u8string_view string) const noexcept
 			-> std::generator<std::tuple<std::size_t, std::size_t, char32_t>>;
 	};
-	constexpr core::Utf32ConverterView utf32_converter_view {};
+	constexpr core::EnumerateUtf32ConverterView enumerate_utf32_converter_view {};
 
 	VOLT_CORE_EXPORT auto startWithAnyOf(std::u8string_view string, std::u32string_view pattern) noexcept
 		-> std::optional<std::u8string_view>;

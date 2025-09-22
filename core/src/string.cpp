@@ -51,7 +51,18 @@ namespace volt::core {
 		return std::make_pair(*utf32, characters.substr(advance));
 	}
 
-	auto Utf32ConverterView::operator()(std::u8string_view string) const noexcept
+	auto Utf32ConverterView::operator()(std::u8string_view string) const noexcept -> std::generator<char32_t>
+	{
+		while (!string.empty()) {
+			const std::optional utf32WithAdvance {core::iterativeUtf8ToUtf32(string)};
+			assert(utf32WithAdvance);
+			auto [utf32, newString] {*utf32WithAdvance};
+			co_yield utf32;
+			string = newString;
+		}
+	}
+
+	auto EnumerateUtf32ConverterView::operator()(std::u8string_view string) const noexcept
 		-> std::generator<std::tuple<std::size_t, std::size_t, char32_t>>
 	{
 		std::size_t index {0};
@@ -90,8 +101,8 @@ namespace volt::core {
 	auto findAnyOf(const std::u8string_view string, const std::u8string_view pattern) noexcept
 		-> std::optional<std::pair<std::size_t, std::size_t>>
 	{
-		for (const auto& [index, size, utf32] : string | core::utf32_converter_view) {
-			for (const auto& [_, _, patternUtf32] : pattern | core::utf32_converter_view) {
+		for (const auto& [index, size, utf32] : string | core::enumerate_utf32_converter_view) {
+			for (const auto patternUtf32 : pattern | core::utf32_converter_view) {
 				if (utf32 != patternUtf32)
 					continue;
 				return std::make_pair(index, size);
@@ -103,7 +114,7 @@ namespace volt::core {
 	auto findAnyOf(const std::u8string_view string, const std::u32string_view pattern) noexcept
 		-> std::optional<std::pair<std::size_t, std::size_t>>
 	{
-		for (const auto& [index, size, utf32] : string | core::utf32_converter_view) {
+		for (const auto& [index, size, utf32] : string | core::enumerate_utf32_converter_view) {
 			for (const auto patternUtf32 : pattern) {
 				if (utf32 != patternUtf32)
 					continue;
