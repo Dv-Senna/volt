@@ -1,7 +1,6 @@
-#include "volt/lx/test.hpp"
+#include "volt/lx/lexer.hpp"
 
 
 auto main(int, char**) -> int {
-	volt::lx::test();
 	return 0;
 }
