@@ -39,3 +39,20 @@
 
 # debug information files
 *.dwo
+
+# build directory
+build/*
+
+# IDEs
+.vscode/*
+.cache/*
+.clangd
+.vimrc
+
+# Scripts
+*.sh
+*.bat
+*.ps1
+
+# Locals
+.local/*
