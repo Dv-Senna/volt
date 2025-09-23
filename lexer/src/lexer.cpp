@@ -62,7 +62,7 @@ namespace volt::lx {
 				jumpToIndex = index + relIndex;
 				co_yield lx::Token{
 					.type = lx::TokenType::eIdentifier,
-					.metadata = rawData.substr(index, index + relIndex)
+					.metadata = rawData.substr(index, relIndex)
 				};
 				continue;
 			}
