@@ -2,11 +2,14 @@
 
 #include <cassert>
 #include <generator>
+#include <numeric>
 #include <ranges>
 #include <string_view>
 
 #include <unicodelib.h>
 
+#include "volt/core/janitor.hpp"
+#include "volt/core/ringBuffer.hpp"
 #include "volt/core/string.hpp"
 #include "volt/lx/token.hpp"
 
@@ -27,13 +30,73 @@ namespace volt::lx {
 	auto isIdentifierStartCharacters(char32_t character) noexcept -> bool {
 		return unicode::is_xid_start(character);
 	}
+	auto isRepeatingChar(
+		char32_t character,
+		const core::RingBuffer<char32_t, LAST_CHARACTERS_BUFFER_SIZE>& lastCharacters,
+		char32_t repeat,
+		std::size_t count
+	) noexcept -> bool {
+		if (character == repeat)
+			return false;
+		if (lastCharacters[count] == repeat)
+			return false;
+		for (const auto i : std::views::iota(0uz, count)) {
+			if (lastCharacters[i] != repeat)
+				return false;
+		}
+		return true;
+	}
 
 	auto lex(const std::u8string_view rawData) noexcept -> std::generator<lx::Token> {
 		std::optional<std::size_t> jumpToIndex {std::nullopt};
+		core::RingBuffer<char32_t, LAST_CHARACTERS_BUFFER_SIZE> lastCharacters {U'\0'};
 		for (const auto& [index, size, character] : rawData | core::enumerate_utf32_converter_view) {
+			core::Janitor _ {[&lastCharacters, character]() noexcept {lastCharacters.push(character);}};
 			if (jumpToIndex && index < jumpToIndex)
 				continue;
 			jumpToIndex = std::nullopt;
+
+			if (lx::isRepeatingChar(character, lastCharacters, U'=', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorEqual,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U'=', 2uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorDoubleEqual,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U'(', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorOpenParenthesis,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U')', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorCloseParenthesis,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U'{', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorOpenBraces,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U'}', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorCloseBraces,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U'[', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorOpenSquareBracket,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U']', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorCloseSquareBracket,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U'<', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorOpenAngleBracket,
+				.metadata = {}
+			};
+			else if (lx::isRepeatingChar(character, lastCharacters, U'>', 1uz)) co_yield lx::Token{
+				.type = lx::TokenType::eOperatorCloseAngleBracket,
+				.metadata = {}
+			};
+
 			if (lx::isIgnoredCharacters(character))
 				continue;
 			if (lx::isLineBreakCharacters(character)) {

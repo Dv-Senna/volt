@@ -7,8 +7,7 @@ list(REMOVE_ITEM SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 add_library(lexer SHARED ${SOURCE_FILES})
 add_library(volt::lexer ALIAS lexer)
 target_compile_features(lexer
-	PUBLIC cxx_std_23
-	PRIVATE cxx_std_26
+	PUBLIC cxx_std_26
 )
 target_include_directories(lexer
 	PUBLIC

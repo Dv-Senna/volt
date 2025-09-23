@@ -11,8 +11,7 @@ auto toSv(std::u8string_view view) {
 
 auto main(int, char**) -> int {
 	std::u8string text {
-		u8"  \n Hello World\n"
-		u8"   some other_identifier with µs"
+		u8"a = a (b == c)"
 	};
 
 	std::println("{}", toSv(text));
