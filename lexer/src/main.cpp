@@ -23,6 +23,8 @@ auto main(int, char**) -> int {
 			std::println("EOF");
 		else if (token.type == volt::lx::TokenType::eIdentifier)
 			std::println("Identifier: '{}'", toSv(std::get<std::u8string_view> (token.metadata)));
+		else if (token.type == volt::lx::TokenType::eOperator)
+			std::println("Operator: '{}'", toSv(std::get<std::u8string_view> (token.metadata)));
 		else
 			std::println("unknown token");
 	}

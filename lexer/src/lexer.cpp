@@ -30,21 +30,9 @@ namespace volt::lx {
 	auto isIdentifierStartCharacters(char32_t character) noexcept -> bool {
 		return unicode::is_xid_start(character);
 	}
-	auto isRepeatingChar(
-		char32_t character,
-		const core::RingBuffer<char32_t, LAST_CHARACTERS_BUFFER_SIZE>& lastCharacters,
-		char32_t repeat,
-		std::size_t count
-	) noexcept -> bool {
-		if (character == repeat)
-			return false;
-		if (lastCharacters[count] == repeat)
-			return false;
-		for (const auto i : std::views::iota(0uz, count)) {
-			if (lastCharacters[i] != repeat)
-				return false;
-		}
-		return true;
+	auto isOperatorCharacters(char32_t character) noexcept -> bool {
+		static const std::u32string_view allowed {U"=<>+-*/%&|()[]{},.?:~^!"};
+		return allowed.contains(character);
 	}
 
 	auto lex(const std::u8string_view rawData) noexcept -> std::generator<lx::Token> {
@@ -55,47 +43,6 @@ namespace volt::lx {
 			if (jumpToIndex && index < jumpToIndex)
 				continue;
 			jumpToIndex = std::nullopt;
-
-			if (lx::isRepeatingChar(character, lastCharacters, U'=', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorEqual,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U'=', 2uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorDoubleEqual,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U'(', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorOpenParenthesis,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U')', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorCloseParenthesis,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U'{', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorOpenBraces,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U'}', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorCloseBraces,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U'[', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorOpenSquareBracket,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U']', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorCloseSquareBracket,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U'<', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorOpenAngleBracket,
-				.metadata = {}
-			};
-			else if (lx::isRepeatingChar(character, lastCharacters, U'>', 1uz)) co_yield lx::Token{
-				.type = lx::TokenType::eOperatorCloseAngleBracket,
-				.metadata = {}
-			};
 
 			if (lx::isIgnoredCharacters(character))
 				continue;
@@ -126,6 +73,13 @@ namespace volt::lx {
 				co_yield lx::Token{
 					.type = lx::TokenType::eIdentifier,
 					.metadata = rawData.substr(index, relIndex)
+				};
+				continue;
+			}
+			if (lx::isOperatorCharacters(character)) {
+				co_yield lx::Token{
+					.type = lx::TokenType::eOperator,
+					.metadata = rawData.substr(index, size)
 				};
 				continue;
 			}
