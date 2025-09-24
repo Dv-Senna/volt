@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <generator>
+#include <map>
 #include <numeric>
 #include <ranges>
 #include <string_view>
@@ -55,6 +56,13 @@ namespace volt::lx {
 			}
 			if (lx::isSpaceCharacters(character))
 				continue;
+			if (character == U';') {
+				co_yield lx::Token{
+					.type = lx::TokenType::eEOS,
+					.metadata = {}
+				};
+				continue;
+			}
 			if (lx::isIdentifierStartCharacters(character)) {
 				std::size_t relIndex {size};
 				std::u8string_view iterationRawData {rawData.substr(index + relIndex)};
@@ -70,9 +78,28 @@ namespace volt::lx {
 					iterationRawData = newIterationRawData;
 				}
 				jumpToIndex = index + relIndex;
-				co_yield lx::Token{
+				std::u8string_view identifier {rawData.substr(index, relIndex)};
+
+				static const std::map<std::u8string_view, lx::TokenType> tokenTypeMap {
+					{u8"if",       lx::TokenType::eKeywordIf},
+					{u8"else",     lx::TokenType::eKeywordElse},
+					{u8"while",    lx::TokenType::eKeywordWhile},
+					{u8"for",      lx::TokenType::eKeywordFor},
+					{u8"loop",     lx::TokenType::eKeywordLoop},
+					{u8"continue", lx::TokenType::eKeywordContinue},
+					{u8"break",    lx::TokenType::eKeywordBreak},
+					{u8"func",     lx::TokenType::eKeywordFunc},
+					{u8"return",   lx::TokenType::eKeywordReturn},
+				};
+
+				const auto tokenType {tokenTypeMap.find(identifier)};
+				if (tokenType != tokenTypeMap.end()) co_yield lx::Token {
+					.type = tokenType->second,
+					.metadata = {}
+				};
+				else co_yield lx::Token{
 					.type = lx::TokenType::eIdentifier,
-					.metadata = rawData.substr(index, relIndex)
+					.metadata = identifier,
 				};
 				continue;
 			}

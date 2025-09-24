@@ -11,7 +11,10 @@ auto toSv(std::u8string_view view) {
 
 auto main(int, char**) -> int {
 	std::u8string text {
-		u8"a = a (b == c)"
+		u8"hello= 10;\n"
+		u8"if (hello ==world) {\n"
+		u8"\thello += world;\n"
+		u8"}"
 	};
 
 	std::println("{}", toSv(text));
@@ -21,10 +24,16 @@ auto main(int, char**) -> int {
 			std::println("EOL");
 		else if (token.type == volt::lx::TokenType::eEOF)
 			std::println("EOF");
+		else if (token.type == volt::lx::TokenType::eEOS)
+			std::println("EOS");
 		else if (token.type == volt::lx::TokenType::eIdentifier)
 			std::println("Identifier: '{}'", toSv(std::get<std::u8string_view> (token.metadata)));
 		else if (token.type == volt::lx::TokenType::eOperator)
 			std::println("Operator: '{}'", toSv(std::get<std::u8string_view> (token.metadata)));
+		else if (token.type == volt::lx::TokenType::eKeywordIf)
+			std::println("Keyword if");
+		else if (token.type == volt::lx::TokenType::eKeywordElse)
+			std::println("Keyword else");
 		else
 			std::println("unknown token");
 	}
