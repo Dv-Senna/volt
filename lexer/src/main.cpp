@@ -12,6 +12,7 @@ auto toSv(std::u8string_view view) {
 auto main(int, char**) -> int {
 	std::u8string text {
 		u8"hello= -1_0e+20;\n"
+		u8"1+2;\n"
 		u8"other = \"hi\\\"hi\";\n"
 		u8"char = 'A';\n"
 		u8"if (hello ==world) /* comment */ {\n"

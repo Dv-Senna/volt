@@ -168,11 +168,25 @@ namespace volt::lx {
 					textData.size += size;
 					continue;
 				}
+				else if (lastCharacter == U'+') {
+					co_yield lx::Token{
+						.type = lx::TokenType::eOperator,
+						.metadata = u8"+"sv
+					};
+					activeMultichar = ActiveMultichar::eNone;
+				}
+				else if (lastCharacter == U'-') {
+					co_yield lx::Token{
+						.type = lx::TokenType::eOperator,
+						.metadata = u8"-"sv
+					};
+					activeMultichar = ActiveMultichar::eNone;
+				}
 				else if (lastCharacter == U'e' && (character == U'+' || character == U'-')) {
 					textData.size += size;
 					continue;
 				}
-				co_yield lx::Token{
+				else co_yield lx::Token{
 					.type = lx::TokenType::eLiteralNumber,
 					.metadata = rawData.substr(textData.index, textData.size)
 				};
