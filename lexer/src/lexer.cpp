@@ -4,6 +4,7 @@
 #include <generator>
 #include <map>
 #include <numeric>
+#include <print>
 #include <ranges>
 #include <string_view>
 
@@ -34,6 +35,23 @@ namespace volt::lx {
 	auto isOperatorCharacters(char32_t character) noexcept -> bool {
 		static const std::u32string_view allowed {U"=<>+-*/%&|()[]{},.?:~^!"};
 		return allowed.contains(character);
+	}
+	auto isWord(
+		char32_t character,
+		const LastCharactersBuffer& lastCharacters,
+		std::u32string_view word
+	) noexcept -> bool {
+		if (word.empty())
+			return false;
+		if (character != word[0uz])
+			return false;
+		for (const auto& [index, wordCharacter] : word | std::views::drop(1uz) | std::views::enumerate) {
+			std::println("word character for word '{}' : '{}' at {}", std::string_view{(const char*)word.data(), word.size()}, (char)wordCharacter, index);
+			if (wordCharacter != lastCharacters[index])
+				return false;
+			std::println("present");
+		}
+		return true;
 	}
 
 	auto lex(const std::u8string_view rawData) noexcept -> std::generator<lx::Token> {
@@ -100,6 +118,68 @@ namespace volt::lx {
 				else co_yield lx::Token{
 					.type = lx::TokenType::eIdentifier,
 					.metadata = identifier,
+				};
+				continue;
+			}
+			if (lx::isWord(character, lastCharacters, U"//")) {
+				std::size_t relIndex {size};
+				std::u8string_view iterationRawData {rawData.substr(index + relIndex)};
+				while (true) {
+					if (iterationRawData.empty())
+						break;
+					const std::optional utf32WithAdvance {core::iterativeUtf8ToUtf32(iterationRawData)};
+					assert(utf32WithAdvance);
+					const auto [utf32, newIterationRawData] {*utf32WithAdvance};
+					if (lx::isLineBreakCharacters(utf32))
+						break;
+					relIndex += newIterationRawData.begin() - iterationRawData.begin();
+					iterationRawData = newIterationRawData;
+				}
+				jumpToIndex = index + relIndex;
+				std::u8string_view comment {rawData.substr(index, relIndex)};
+				co_yield lx::Token{
+					.type = lx::TokenType::eSingleLineComment,
+					.metadata = {}
+				};
+				co_yield lx::Token{
+					.type = lx::TokenType::eCommentContent,
+					.metadata = comment
+				};
+				continue;
+			}
+			if (lx::isWord(character, lastCharacters, U"/*")) {
+				std::size_t relIndex {size};
+				std::u8string_view iterationRawData {rawData.substr(index + relIndex)};
+				char32_t lastCharacter {U'\0'};
+				std::size_t lastCharacterSize {0uz};
+				while (true) {
+					if (iterationRawData.empty()) {
+						lastCharacterSize = 0uz;
+						break;
+					}
+					const std::optional utf32WithAdvance {core::iterativeUtf8ToUtf32(iterationRawData)};
+					assert(utf32WithAdvance);
+					const auto [utf32, newIterationRawData] {*utf32WithAdvance};
+					if (lastCharacter == U'*' && utf32 == U'/')
+						break;
+					lastCharacter = utf32;
+					lastCharacterSize = newIterationRawData.begin() - iterationRawData.begin();
+					relIndex += lastCharacterSize;
+					iterationRawData = newIterationRawData;
+				}
+				jumpToIndex = index + relIndex + 1uz;
+				std::u8string_view comment {rawData.substr(index, relIndex - lastCharacterSize)};
+				co_yield lx::Token{
+					.type = lx::TokenType::eOpenComment,
+					.metadata = {}
+				};
+				co_yield lx::Token{
+					.type = lx::TokenType::eCommentContent,
+					.metadata = comment
+				};
+				co_yield lx::Token{
+					.type = lx::TokenType::eCloseComment,
+					.metadata = {}
 				};
 				continue;
 			}

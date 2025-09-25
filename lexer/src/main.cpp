@@ -12,9 +12,9 @@ auto toSv(std::u8string_view view) {
 auto main(int, char**) -> int {
 	std::u8string text {
 		u8"hello= 10;\n"
-		u8"if (hello ==world) {\n"
+		u8"if (hello ==world) /* comment */ {\n"
 		u8"\thello += world;\n"
-		u8"}"
+		u8"} // other comment"
 	};
 
 	std::println("{}", toSv(text));
@@ -34,6 +34,14 @@ auto main(int, char**) -> int {
 			std::println("Keyword if");
 		else if (token.type == volt::lx::TokenType::eKeywordElse)
 			std::println("Keyword else");
+		else if (token.type == volt::lx::TokenType::eOpenComment)
+			std::println("Open comment");
+		else if (token.type == volt::lx::TokenType::eCloseComment)
+			std::println("Close comment");
+		else if (token.type == volt::lx::TokenType::eSingleLineComment)
+			std::println("Single line comment");
+		else if (token.type == volt::lx::TokenType::eCommentContent)
+			std::println("Comment: '{}'", toSv(std::get<std::u8string_view> (token.metadata)));
 		else
 			std::println("unknown token");
 	}

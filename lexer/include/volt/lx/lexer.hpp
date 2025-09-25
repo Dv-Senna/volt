@@ -18,6 +18,11 @@ namespace volt::lx {
 	VOLT_LX_EXPORT auto isIdentifierCharacters(char32_t character) noexcept -> bool;
 	VOLT_LX_EXPORT auto isIdentifierStartCharacters(char32_t character) noexcept -> bool;
 	VOLT_LX_EXPORT auto isOperatorCharacters(char32_t character) noexcept -> bool;
+	VOLT_LX_EXPORT auto isWord(
+		char32_t character,
+		const LastCharactersBuffer& lastCharacters,
+		std::u32string_view word
+	) noexcept -> bool;
 
 	VOLT_LX_EXPORT auto lex(std::u8string_view rawData) noexcept -> std::generator<lx::Token>;
 }

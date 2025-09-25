@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <concepts>
 #include <cstddef>
+#include <ranges>
 #include <span>
 #include <vector>
 #include <type_traits>
@@ -42,6 +43,24 @@ namespace volt::core {
 				m_size {size},
 				m_capacity {size}
 			{}
+			RingBuffer(std::ranges::input_range auto&& range) noexcept requires (!isInplace) :
+				m_data (std::from_range, std::forward<decltype(range)> (range)),
+				m_start {0uz},
+				m_size {m_data.size()},
+				m_capacity {m_size}
+			{}
+			RingBuffer(std::ranges::input_range auto&& range, const T& fill)
+				noexcept
+				requires (isInplace && std::ranges::sized_range<decltype(range)>)
+			:
+				m_data {},
+				m_start {0uz},
+				m_size {maxSize...[0uz]}
+			{
+				const std::size_t rangeSize {std::ranges::size(std::forward<decltype(range)> (range))};
+				std::ranges::copy(std::span<T, maxSize...[0uz]> {m_data}, std::forward<decltype(range)> (range));
+				std::ranges::fill(std::span<T> {m_data + rangeSize, m_size - rangeSize}, fill);
+			}
 
 			auto push(auto&& value) noexcept -> void {
 				(*this)[m_size] = std::forward<decltype(value)> (value);

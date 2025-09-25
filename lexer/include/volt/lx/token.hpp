@@ -13,8 +13,7 @@ namespace volt::lx {
 	 * The token type is categorized in the following ways:
 	 *   - utilitary stuff, marker (EOF, EOL, ...) | start with 0x0
 	 *   - keywords (if, while, ...)               | start with 0x1
-	 *   - utilis (identifier, operator, ...)      | start with 0x2
-	 *   - literals (string, number, ...)          | start with 0x3
+	 *   - literals (string, number, ...)          | start with 0x2
 	 * */
 	enum class TokenType : std::uint32_t {
 		//! end of file
@@ -26,6 +25,11 @@ namespace volt::lx {
 
 		eOpenComment = 0x0001'0000,
 		eCloseComment = 0x0001'0001,
+		eSingleLineComment = 0x0001'0002,
+
+		eIdentifier = 0x0002'0000,
+		eCommentContent = 0x0002'0001,
+		eOperator = 0x0002'0002,
 
 		eKeywordIf = 0x1000'0000,
 		eKeywordElse = 0x1000'0001,
@@ -37,13 +41,9 @@ namespace volt::lx {
 		eKeywordFunc = 0x1000'0007,
 		eKeywordReturn = 0x1000'0008,
 
-		eIdentifier = 0x2000'0000,
-		eComment = 0x2000'0001,
-		eOperator = 0x2000'0002,
-
-		eLiteralNumber = 0x3000'0000,
-		eLiteralCharacter = 0x3000'0001,
-		eLiteralString = 0x3000'0002,
+		eLiteralNumber = 0x2000'0000,
+		eLiteralCharacter = 0x2000'0001,
+		eLiteralString = 0x2000'0002,
 	};
 
 
