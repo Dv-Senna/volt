@@ -11,7 +11,6 @@
 #include <unicodelib.h>
 
 #include "volt/core/janitor.hpp"
-#include "volt/core/ringBuffer.hpp"
 #include "volt/core/string.hpp"
 #include "volt/lx/token.hpp"
 
@@ -36,68 +35,31 @@ namespace volt::lx {
 		static const std::u32string_view allowed {U"=<>+-*/%&|()[]{},.?:~^!"};
 		return allowed.contains(character);
 	}
-	auto isWord(
-		char32_t character,
-		const LastCharactersBuffer& lastCharacters,
-		std::u32string_view word
-	) noexcept -> bool {
-		if (word.empty())
-			return false;
-		if (character != word[0uz])
-			return false;
-		for (const auto& [index, wordCharacter] : word | std::views::drop(1uz) | std::views::enumerate) {
-			std::println("word character for word '{}' : '{}' at {}", std::string_view{(const char*)word.data(), word.size()}, (char)wordCharacter, index);
-			if (wordCharacter != lastCharacters[index])
-				return false;
-			std::println("present");
-		}
-		return true;
-	}
 
 	auto lex(const std::u8string_view rawData) noexcept -> std::generator<lx::Token> {
-		std::optional<std::size_t> jumpToIndex {std::nullopt};
-		core::RingBuffer<char32_t, LAST_CHARACTERS_BUFFER_SIZE> lastCharacters {U'\0'};
+		using namespace std::string_view_literals;
+		char32_t lastCharacter {U'\0'};
+		enum class ActiveMultichar {
+			eNone,
+			eIdentifier,
+			eSingleLineComment,
+			eMultilineComment,
+			eStartComment,
+		};
+		ActiveMultichar activeMultichar {ActiveMultichar::eNone};
+		struct TextData {
+			std::size_t index;
+			std::size_t size;
+		};
+		TextData textData {};
+
 		for (const auto& [index, size, character] : rawData | core::enumerate_utf32_converter_view) {
-			core::Janitor _ {[&lastCharacters, character]() noexcept {lastCharacters.push(character);}};
-			if (jumpToIndex && index < jumpToIndex)
-				continue;
-			jumpToIndex = std::nullopt;
-
-			if (lx::isIgnoredCharacters(character))
-				continue;
-			if (lx::isLineBreakCharacters(character)) {
-				co_yield lx::Token{
-					.type = lx::TokenType::eEOL,
-					.metadata = {}
-				};
-				continue;
-			}
-			if (lx::isSpaceCharacters(character))
-				continue;
-			if (character == U';') {
-				co_yield lx::Token{
-					.type = lx::TokenType::eEOS,
-					.metadata = {}
-				};
-				continue;
-			}
-			if (lx::isIdentifierStartCharacters(character)) {
-				std::size_t relIndex {size};
-				std::u8string_view iterationRawData {rawData.substr(index + relIndex)};
-				while (true) {
-					if (iterationRawData.empty())
-						break;
-					const std::optional utf32WithAdvance {core::iterativeUtf8ToUtf32(iterationRawData)};
-					assert(utf32WithAdvance);
-					const auto [utf32, newIterationRawData] {*utf32WithAdvance};
-					if (!lx::isIdentifierCharacters(utf32))
-						break;
-					relIndex += newIterationRawData.begin() - iterationRawData.begin();
-					iterationRawData = newIterationRawData;
+			core::Janitor _ {[&lastCharacter, character]() noexcept {lastCharacter = character;}};
+			if (activeMultichar == ActiveMultichar::eIdentifier) {
+				if (lx::isIdentifierCharacters(character)) {
+					textData.size += size;
+					continue;
 				}
-				jumpToIndex = index + relIndex;
-				std::u8string_view identifier {rawData.substr(index, relIndex)};
-
 				static const std::map<std::u8string_view, lx::TokenType> tokenTypeMap {
 					{u8"if",       lx::TokenType::eKeywordIf},
 					{u8"else",     lx::TokenType::eKeywordElse},
@@ -110,6 +72,7 @@ namespace volt::lx {
 					{u8"return",   lx::TokenType::eKeywordReturn},
 				};
 
+				const std::u8string_view identifier {rawData.substr(textData.index, textData.size)};
 				const auto tokenType {tokenTypeMap.find(identifier)};
 				if (tokenType != tokenTypeMap.end()) co_yield lx::Token {
 					.type = tokenType->second,
@@ -119,77 +82,103 @@ namespace volt::lx {
 					.type = lx::TokenType::eIdentifier,
 					.metadata = identifier,
 				};
-				continue;
 			}
-			if (lx::isWord(character, lastCharacters, U"//")) {
-				std::size_t relIndex {size};
-				std::u8string_view iterationRawData {rawData.substr(index + relIndex)};
-				while (true) {
-					if (iterationRawData.empty())
-						break;
-					const std::optional utf32WithAdvance {core::iterativeUtf8ToUtf32(iterationRawData)};
-					assert(utf32WithAdvance);
-					const auto [utf32, newIterationRawData] {*utf32WithAdvance};
-					if (lx::isLineBreakCharacters(utf32))
-						break;
-					relIndex += newIterationRawData.begin() - iterationRawData.begin();
-					iterationRawData = newIterationRawData;
+			else if (activeMultichar == ActiveMultichar::eSingleLineComment) {
+				if (lx::isLineBreakCharacters(character)) {
+					co_yield lx::Token{
+						.type = lx::TokenType::eSingleLineComment,
+						.metadata = {}
+					};
+					co_yield lx::Token{
+						.type = lx::TokenType::eCommentContent,
+						.metadata = rawData.substr(textData.index, textData.size)
+					};
 				}
-				jumpToIndex = index + relIndex;
-				std::u8string_view comment {rawData.substr(index, relIndex)};
-				co_yield lx::Token{
-					.type = lx::TokenType::eSingleLineComment,
-					.metadata = {}
-				};
-				co_yield lx::Token{
-					.type = lx::TokenType::eCommentContent,
-					.metadata = comment
-				};
-				continue;
+				else if (index + size >= rawData.size()) {
+					co_yield lx::Token{
+						.type = lx::TokenType::eSingleLineComment,
+						.metadata = {}
+					};
+					co_yield lx::Token{
+						.type = lx::TokenType::eCommentContent,
+						.metadata = rawData.substr(textData.index, textData.size + size)
+					};
+					break;
+				}
+				else {
+					textData.size += size;
+					continue;
+				}
 			}
-			if (lx::isWord(character, lastCharacters, U"/*")) {
-				std::size_t relIndex {size};
-				std::u8string_view iterationRawData {rawData.substr(index + relIndex)};
-				char32_t lastCharacter {U'\0'};
-				std::size_t lastCharacterSize {0uz};
-				while (true) {
-					if (iterationRawData.empty()) {
-						lastCharacterSize = 0uz;
-						break;
-					}
-					const std::optional utf32WithAdvance {core::iterativeUtf8ToUtf32(iterationRawData)};
-					assert(utf32WithAdvance);
-					const auto [utf32, newIterationRawData] {*utf32WithAdvance};
-					if (lastCharacter == U'*' && utf32 == U'/')
-						break;
-					lastCharacter = utf32;
-					lastCharacterSize = newIterationRawData.begin() - iterationRawData.begin();
-					relIndex += lastCharacterSize;
-					iterationRawData = newIterationRawData;
+			else if (activeMultichar == ActiveMultichar::eMultilineComment) {
+				if (lastCharacter != U'*' || character != U'/') {
+					textData.size += size;
+					continue;
 				}
-				jumpToIndex = index + relIndex + 1uz;
-				std::u8string_view comment {rawData.substr(index, relIndex - lastCharacterSize)};
 				co_yield lx::Token{
 					.type = lx::TokenType::eOpenComment,
 					.metadata = {}
 				};
 				co_yield lx::Token{
 					.type = lx::TokenType::eCommentContent,
-					.metadata = comment
+					.metadata = rawData.substr(textData.index, textData.size - 1uz)
 				};
 				co_yield lx::Token{
 					.type = lx::TokenType::eCloseComment,
 					.metadata = {}
 				};
+				activeMultichar = ActiveMultichar::eNone;
 				continue;
 			}
-			if (lx::isOperatorCharacters(character)) {
+			else if (activeMultichar == ActiveMultichar::eStartComment) {
+				if (character == U'/') {
+					activeMultichar = ActiveMultichar::eSingleLineComment;
+					textData = {
+						.index = index + size,
+						.size = 0uz
+					};
+					continue;
+				}
+				if (character == U'*') {
+					activeMultichar = ActiveMultichar::eMultilineComment;
+					textData = {
+						.index = index + size,
+						.size = 0uz
+					};
+					continue;
+				}
 				co_yield lx::Token{
 					.type = lx::TokenType::eOperator,
-					.metadata = rawData.substr(index, size)
+					.metadata = u8"/"sv
 				};
-				continue;
 			}
+
+			activeMultichar = ActiveMultichar::eNone;
+			if (lx::isIgnoredCharacters(character))
+				continue;
+			else if (lx::isLineBreakCharacters(character)) co_yield lx::Token{
+				.type = lx::TokenType::eEOL,
+				.metadata = {}
+			};
+			else if (lx::isSpaceCharacters(character))
+				continue;
+			else if (character == U';') co_yield lx::Token{
+				.type = lx::TokenType::eEOS,
+				.metadata = {}
+			};
+			else if (lx::isIdentifierStartCharacters(character)) {
+				textData = {
+					.index = index,
+					.size = size
+				};
+				activeMultichar = ActiveMultichar::eIdentifier;
+			}
+			else if (character == U'/')
+				activeMultichar = ActiveMultichar::eStartComment;
+			else if (lx::isOperatorCharacters(character)) co_yield lx::Token{
+				.type = lx::TokenType::eOperator,
+				.metadata = rawData.substr(index, size)
+			};
 		}
 
 		co_yield lx::Token{

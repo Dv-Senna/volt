@@ -11,6 +11,7 @@
 
 namespace volt::core {
 	VOLT_CORE_EXPORT auto utf8ToUtf32(std::u8string_view characters) noexcept -> std::optional<char32_t>;
+	VOLT_CORE_EXPORT auto utf32ToUtf8(char32_t character) noexcept -> std::u8string;
 	VOLT_CORE_EXPORT auto iterativeUtf8ToUtf32(std::u8string_view characters) noexcept
 		-> std::optional<std::pair<char32_t, std::u8string_view>>;
 	VOLT_CORE_EXPORT auto isSameCodePoint(std::u8string_view lhs, std::u8string_view rhs) noexcept -> bool;

@@ -32,6 +32,31 @@ namespace volt::core {
 			return std::nullopt;
 	}
 
+	auto utf32ToUtf8(const char32_t character) noexcept -> std::u8string {
+		if (character <= 0x7f)
+			return std::u8string{static_cast<char8_t> (static_cast<char> (character))};
+		if (character <= 0x7ff) {
+			return std::u8string{
+				static_cast<char8_t> ((static_cast<std::size_t> (character) >> 6uz) | 0b1100'0000),
+				static_cast<char8_t> ((static_cast<std::size_t> (character) & 0b0011'1111) | 0b1000'0000)
+			};
+		}
+		if (character <= 0xffff) {
+			return std::u8string{
+				static_cast<char8_t> ((static_cast<std::size_t> (character) >> 12uz) | 0b1110'0000),
+				static_cast<char8_t> (((static_cast<std::size_t> (character) >> 6uz) & 0b0011'1111) | 0b1000'0000),
+				static_cast<char8_t> ((static_cast<std::size_t> (character) & 0b0011'1111) | 0b1000'0000),
+			};
+		}
+		assert(character <= 0x10ffff);
+		return std::u8string{
+			static_cast<char8_t> ((static_cast<std::size_t> (character) >> 18uz) | 0b1111'0000),
+			static_cast<char8_t> (((static_cast<std::size_t> (character) >> 12uz) & 0b0011'1111) | 0b1000'0000),
+			static_cast<char8_t> (((static_cast<std::size_t> (character) >> 6uz) & 0b0011'1111) | 0b1000'0000),
+			static_cast<char8_t> ((static_cast<std::size_t> (character) & 0b0011'1111) | 0b1000'0000),
+		};
+	}
+
 	auto iterativeUtf8ToUtf32(const std::u8string_view characters) noexcept
 		-> std::optional<std::pair<char32_t, std::u8string_view>>
 	{
