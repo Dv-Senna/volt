@@ -35,6 +35,14 @@ namespace volt::lx {
 		static const std::u32string_view allowed {U"=<>+-*/%&|()[]{},.?:~^!"};
 		return allowed.contains(character);
 	}
+	auto isNumerLiteralCharacters(char32_t character) noexcept -> bool {
+		static const std::u32string_view allowed {U"0123456789_e"};
+		return allowed.contains(character);
+	}
+	auto isNumerLiteralStartCharacters(char32_t character) noexcept -> bool {
+		static const std::u32string_view allowed {U"0123456789+-"};
+		return allowed.contains(character);
+	}
 
 	auto lex(const std::u8string_view rawData) noexcept -> std::generator<lx::Token> {
 		using namespace std::string_view_literals;
@@ -45,6 +53,9 @@ namespace volt::lx {
 			eSingleLineComment,
 			eMultilineComment,
 			eStartComment,
+			eNumberLiteral,
+			eStringLiteral,
+			eCharacterLiteral,
 		};
 		ActiveMultichar activeMultichar {ActiveMultichar::eNone};
 		struct TextData {
@@ -152,6 +163,44 @@ namespace volt::lx {
 					.metadata = u8"/"sv
 				};
 			}
+			else if (activeMultichar == ActiveMultichar::eNumberLiteral) {
+				if (lx::isNumerLiteralCharacters(character)) {
+					textData.size += size;
+					continue;
+				}
+				else if (lastCharacter == U'e' && (character == U'+' || character == U'-')) {
+					textData.size += size;
+					continue;
+				}
+				co_yield lx::Token{
+					.type = lx::TokenType::eLiteralNumber,
+					.metadata = rawData.substr(textData.index, textData.size)
+				};
+			}
+			else if (activeMultichar == ActiveMultichar::eStringLiteral) {
+				if (character != U'"' || lastCharacter == U'\\') {
+					textData.size += size;
+					continue;
+				}
+				co_yield lx::Token{
+					.type = lx::TokenType::eLiteralString,
+					.metadata = rawData.substr(textData.index, textData.size)
+				};
+				activeMultichar = ActiveMultichar::eNone;
+				continue;
+			}
+			else if (activeMultichar == ActiveMultichar::eCharacterLiteral) {
+				if (character != U'\'' || lastCharacter == U'\\') {
+					textData.size += size;
+					continue;
+				}
+				co_yield lx::Token{
+					.type = lx::TokenType::eLiteralCharacter,
+					.metadata = rawData.substr(textData.index, textData.size)
+				};
+				activeMultichar = ActiveMultichar::eNone;
+				continue;
+			}
 
 			activeMultichar = ActiveMultichar::eNone;
 			if (lx::isIgnoredCharacters(character))
@@ -175,6 +224,27 @@ namespace volt::lx {
 			}
 			else if (character == U'/')
 				activeMultichar = ActiveMultichar::eStartComment;
+			else if (lx::isNumerLiteralStartCharacters(character)) {
+				textData = {
+					.index = index,
+					.size = size
+				};
+				activeMultichar = ActiveMultichar::eNumberLiteral;
+			}
+			else if (character == U'"') {
+				textData = {
+					.index = index + size,
+					.size = 0uz
+				};
+				activeMultichar = ActiveMultichar::eStringLiteral;
+			}
+			else if (character == U'\'') {
+				textData = {
+					.index = index + size,
+					.size = 0uz
+				};
+				activeMultichar = ActiveMultichar::eCharacterLiteral;
+			}
 			else if (lx::isOperatorCharacters(character)) co_yield lx::Token{
 				.type = lx::TokenType::eOperator,
 				.metadata = rawData.substr(index, size)
