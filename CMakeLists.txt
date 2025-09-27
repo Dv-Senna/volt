@@ -6,3 +6,4 @@ include(cmake/cpp-unicodelib.cmake)
 
 add_subdirectory(core)
 add_subdirectory(lexer)
+add_subdirectory(parser)

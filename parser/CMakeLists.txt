@@ -16,8 +16,8 @@ target_include_directories(parser
 )
 target_link_libraries(parser PUBLIC volt::core volt::lexer)
 generate_export_header(parser
-	PREFIX VOLT_LX
-	HEADER_PATH ${CMAKE_CURRENT_BINARY_DIR}/generated/include/volt/lx/export.hpp
+	PREFIX VOLT_PARSER
+	HEADER_PATH ${CMAKE_CURRENT_BINARY_DIR}/generated/include/volt/parser/export.hpp
 )
 target_compile_options(parser PRIVATE -Wall -Wextra -Wpedantic)
 
